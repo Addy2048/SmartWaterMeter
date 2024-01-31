@@ -6,7 +6,7 @@ import Home from "./src/screens/home";
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="auto" />
+      <StatusBar backgroundColor="#192655" style="light" />
       <Home />
     </SafeAreaView>
   );
