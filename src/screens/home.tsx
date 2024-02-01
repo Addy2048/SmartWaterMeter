@@ -19,6 +19,7 @@ const Home = () => {
   const [showModal, setShowModal] = useState(false);
   const [unitAmount, setUnitAmount] = useState("");
   const [available, setAvailable] = useState(0);
+  const [consumed, setConsumed] = useState(10);
   const [user, setUser] = useState({
     accountName: "Adiel Azaliwa",
     accountNumber: "999-999-999",
@@ -33,23 +34,27 @@ const Home = () => {
   };
 
   const handlePurchase = async () => {
-    const docToUpdate = {
-      availableUnits: 15,
-      updatedAt: dayjs().format(),
-    };
+    const val = Number(unitAmount) + available;
+    setAvailable(val);
+    closeModal();
+    setUnitAmount("");
+    // const docToUpdate = {
+    //   availableUnits: 15,
+    //   updatedAt: dayjs().format(),
+    // };
 
-    try {
-      const docRef = doc(db, "unitBalance", user.accountNumber);
+    // try {
+    //   const docRef = doc(db, "unitBalance", user.accountNumber);
 
-      await updateDoc(docRef, { ...docToUpdate });
+    //   await updateDoc(docRef, { ...docToUpdate });
 
-      console.log(docRef);
-      console.log("report saved successfully");
-      closeModal();
-    } catch (error) {
-      console.log(error, "failed to save report");
-      closeModal();
-    }
+    //   console.log(docRef);
+    //   console.log("report saved successfully");
+    //   closeModal();
+    // } catch (error) {
+    //   console.log(error, "failed to save report");
+    //   closeModal();
+    // }
   };
 
   const handleCancel = () => {
@@ -86,7 +91,7 @@ const Home = () => {
         </TouchableOpacity>
       </View>
       <View style={styles.bottom}>
-        <UnitDisplay availableUnits={available} consumedUnits={0} />
+        <UnitDisplay availableUnits={available} consumedUnits={consumed} />
 
         <View style={styles.buyContainer}>
           <TouchableOpacity style={styles.buyBtn} onPress={openModal}>
