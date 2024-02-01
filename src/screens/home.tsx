@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,16 +7,22 @@ import {
   Image,
   Modal,
   TextInput,
-  Button,
 } from "react-native";
-import AccountInfo from "../components/account-info";
 import dayjs from "dayjs";
+import { doc, updateDoc, onSnapshot, getFirestore } from "firebase/firestore";
+import AccountInfo from "../components/account-info";
 import UnitDisplay from "../components/unit-display";
 
 const Home = () => {
+  const db = getFirestore();
+
   const [showModal, setShowModal] = useState(false);
   const [unitAmount, setUnitAmount] = useState("");
   const [available, setAvailable] = useState(0);
+  const [user, setUser] = useState({
+    accountName: "Adiel Azaliwa",
+    accountNumber: "999-999-999",
+  });
 
   const openModal = () => {
     setShowModal(true);
@@ -26,23 +32,51 @@ const Home = () => {
     setShowModal(false);
   };
 
-  const handlePurchase = () => {
-    const totalAvailable = available + Number(unitAmount);
-    setAvailable(totalAvailable);
-    setUnitAmount("");
-    closeModal();
+  const handlePurchase = async () => {
+    const docToUpdate = {
+      availableUnits: 15,
+      updatedAt: dayjs().format(),
+    };
+
+    try {
+      const docRef = doc(db, "unitBalance", user.accountNumber);
+
+      await updateDoc(docRef, { ...docToUpdate });
+
+      console.log(docRef);
+      console.log("report saved successfully");
+      closeModal();
+    } catch (error) {
+      console.log(error, "failed to save report");
+      closeModal();
+    }
   };
 
   const handleCancel = () => {
     setUnitAmount(""), closeModal();
   };
+
+  useEffect(() => {
+    const docRef = doc(db, "unitBalance", user.accountNumber);
+
+    // Use onSnapshot to listen for real-time updates
+    const unsubscribe = onSnapshot(docRef, (snapshot) => {
+      const userData = snapshot.data();
+      if (userData) {
+        setAvailable(userData.availableUnits || 0);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [db, user.accountNumber]);
+
   return (
     <View style={styles.container}>
       <View style={styles.top}>
         <AccountInfo />
         <View>
-          <Text style={styles.date}>{dayjs().format("MMMM DD, YYYY")}</Text>
           <Text style={styles.location}>Dar es Salaam, Tanzania</Text>
+          <Text style={styles.date}>{dayjs().format("MMMM DD, YYYY")}</Text>
         </View>
         <TouchableOpacity style={styles.notification}>
           <Image
@@ -209,6 +243,7 @@ const styles = StyleSheet.create({
   location: {
     textAlign: "right",
     color: "white",
+    fontWeight: "bold",
   },
   date: {
     textAlign: "right",
