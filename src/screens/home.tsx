@@ -32,7 +32,6 @@ export interface User {
 const Home = () => {
   const [showModal, setShowModal] = useState(false);
   const [unitAmount, setUnitAmount] = useState("");
-  const [available, setAvailable] = useState(0);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [user, setUser] = useState<User | undefined>(undefined);
@@ -85,7 +84,6 @@ const Home = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          // body: JSON.stringify({ units: val }),
         }
       );
 
@@ -107,8 +105,6 @@ const Home = () => {
     try {
       const payload = { phoneNumber, password };
 
-      console.log(payload);
-
       const response = await fetch(
         "https://etag-api.onrender.com/api/user/login",
         {
@@ -120,15 +116,12 @@ const Home = () => {
         }
       );
 
-      console.log(response.status);
-
       if (!response.ok) {
         throw new Error("Error logging in. Please try again.");
       }
 
       const user: User = await response.json();
 
-      console.log(user);
       setUser(user);
     } catch (err) {
       console.error(err);
