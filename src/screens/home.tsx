@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,23 +7,35 @@ import {
   Image,
   Modal,
   TextInput,
+  Alert,
 } from "react-native";
 import dayjs from "dayjs";
-import { doc, updateDoc, onSnapshot, getFirestore } from "firebase/firestore";
 import AccountInfo from "../components/account-info";
 import UnitDisplay from "../components/unit-display";
 
-const Home = () => {
-  const db = getFirestore();
+export interface User {
+  id?: string; // MongoDB ObjectId as a string
+  uuid?: string;
+  fullName?: string;
+  phoneNumber?: string;
+  countryCode?: string;
+  countryCodeName?: string;
+  email?: string; // optional property
+  password?: string;
+  passwordResetCode?: string;
+  role?: number; // 1 System Admin, 2 Cashier
+  available?: number; // optional property
+  consumed?: number; // optional property
+  createdAt?: Date; // Date object for createdAt
+}
 
+const Home = () => {
   const [showModal, setShowModal] = useState(false);
   const [unitAmount, setUnitAmount] = useState("");
   const [available, setAvailable] = useState(0);
-  const [consumed, setConsumed] = useState(10);
-  const [user, setUser] = useState({
-    accountName: "Adiel Azaliwa",
-    accountNumber: "999-999-999",
-  });
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [user, setUser] = useState<User | undefined>(undefined);
 
   const openModal = () => {
     setShowModal(true);
@@ -33,57 +45,110 @@ const Home = () => {
     setShowModal(false);
   };
 
+  const showLoginModal = !user ? true : false;
+
   const handlePurchase = async () => {
-    const val = Number(unitAmount) + available;
-    setAvailable(val);
-    closeModal();
-    setUnitAmount("");
-    // const docToUpdate = {
-    //   availableUnits: 15,
-    //   updatedAt: dayjs().format(),
-    // };
+    try {
+      const val = Number(unitAmount);
 
-    // try {
-    //   const docRef = doc(db, "unitBalance", user.accountNumber);
+      const response = await fetch(
+        `https://etag-api.onrender.com/api/user/buy-units?userId=${user?.uuid}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ units: val }),
+        }
+      );
 
-    //   await updateDoc(docRef, { ...docToUpdate });
+      if (!response.ok) {
+        throw new Error("Error buying units. Please try again.");
+      }
 
-    //   console.log(docRef);
-    //   console.log("report saved successfully");
-    //   closeModal();
-    // } catch (error) {
-    //   console.log(error, "failed to save report");
-    //   closeModal();
-    // }
+      const userRes: User = await response.json();
+      setUser(userRes);
+      closeModal();
+      setUnitAmount("");
+    } catch (err) {
+      console.error({ err });
+      Alert.alert("Oups", "Error buying units. Try again");
+    }
+  };
+
+  const handleReload = async () => {
+    try {
+      const response = await fetch(
+        `https://etag-api.onrender.com/api/user?userId=${user?.uuid}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // body: JSON.stringify({ units: val }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error reloading. Please try again.");
+      }
+
+      const userRes: User = await response.json();
+      setUser(userRes);
+      closeModal();
+      setUnitAmount("");
+    } catch (err) {
+      console.error({ err });
+      Alert.alert("Oups", "Error reloading. Try again");
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      const payload = { phoneNumber, password };
+
+      console.log(payload);
+
+      const response = await fetch(
+        "https://etag-api.onrender.com/api/user/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      console.log(response.status);
+
+      if (!response.ok) {
+        throw new Error("Error logging in. Please try again.");
+      }
+
+      const user: User = await response.json();
+
+      console.log(user);
+      setUser(user);
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Oups", "Error logging in. Try again");
+    }
   };
 
   const handleCancel = () => {
     setUnitAmount(""), closeModal();
   };
 
-  useEffect(() => {
-    const docRef = doc(db, "unitBalance", user.accountNumber);
-
-    // Use onSnapshot to listen for real-time updates
-    const unsubscribe = onSnapshot(docRef, (snapshot) => {
-      const userData = snapshot.data();
-      if (userData) {
-        setAvailable(userData.availableUnits || 0);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [db, user.accountNumber]);
-
   return (
     <View style={styles.container}>
       <View style={styles.top}>
-        <AccountInfo />
+        <AccountInfo user={user} />
         <View>
           <Text style={styles.location}>Dar es Salaam, Tanzania</Text>
           <Text style={styles.date}>{dayjs().format("MMMM DD, YYYY")}</Text>
         </View>
-        <TouchableOpacity style={styles.notification}>
+        <TouchableOpacity style={styles.notification} onPress={handleReload}>
           <Image
             style={styles.bell}
             source={require("../../assets/bell.png")}
@@ -91,7 +156,10 @@ const Home = () => {
         </TouchableOpacity>
       </View>
       <View style={styles.bottom}>
-        <UnitDisplay availableUnits={available} consumedUnits={consumed} />
+        <UnitDisplay
+          availableUnits={user?.available || 0}
+          consumedUnits={user?.consumed || 0}
+        />
 
         <View style={styles.buyContainer}>
           <TouchableOpacity style={styles.buyBtn} onPress={openModal}>
@@ -210,6 +278,103 @@ const Home = () => {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={showLoginModal}
+        onAccessibilityEscape={closeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "flex-end", // Align to the bottom
+            backgroundColor: "rgba(25, 38, 85, 0.8)", // Modal shadow color
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              backgroundColor: "white",
+              padding: 20,
+              borderTopLeftRadius: 15,
+              borderTopRightRadius: 15,
+              shadowColor: "#192655", // Shadow color
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.8,
+              shadowRadius: 5,
+              elevation: 5, // For Android
+              height: "45%",
+            }}
+          >
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 16,
+                fontWeight: "bold",
+                margin: 8,
+              }}
+            >
+              LOGIN
+            </Text>
+
+            <Text style={{ fontSize: 16 }}>Phone Number</Text>
+            <TextInput
+              placeholder="Phone Number (eg. 762..)"
+              keyboardType="numeric"
+              value={phoneNumber}
+              onChangeText={(text) => setPhoneNumber(text)}
+              style={{
+                borderWidth: 2,
+                borderColor: "#192655", // Border color
+                marginBottom: 20,
+                paddingHorizontal: 15,
+                paddingVertical: 5,
+                height: 48,
+                borderRadius: 4,
+                fontSize: 16,
+                marginTop: 12,
+              }}
+            />
+
+            <Text style={{ fontSize: 16 }}>Password</Text>
+            <TextInput
+              placeholder="Password"
+              // keyboardType="password"
+              textContentType="password"
+              value={password}
+              onChangeText={(text) => setPassword(text)}
+              style={{
+                borderWidth: 2,
+                borderColor: "#192655", // Border color
+                marginBottom: 20,
+                paddingHorizontal: 15,
+                paddingVertical: 5,
+                height: 48,
+                borderRadius: 4,
+                fontSize: 16,
+                marginTop: 12,
+              }}
+            />
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#192655",
+                height: 48,
+                minWidth: 100,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 10,
+                borderRadius: 4,
+              }}
+              onPress={handleLogin}
+            >
+              <Text style={{ color: "white" }}>Login</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -284,6 +449,9 @@ const styles = StyleSheet.create({
   bell: {
     height: 32,
     width: 32,
+  },
+  loginView: {
+    padding: 12,
   },
 });
 

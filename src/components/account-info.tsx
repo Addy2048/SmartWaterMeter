@@ -1,11 +1,16 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { User } from "../screens/home";
 
-const AccountInfo = () => {
+interface Props {
+  user?: User;
+}
+
+const AccountInfo = ({ user }: Props) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.userName}>Adiel Azaliwa</Text>
-      <Text style={styles.accountNumber}>6779-8980-000</Text>
+      <Text style={styles.userName}>{user?.fullName || ""}</Text>
+      <Text style={styles.accountNumber}>{user?.phoneNumber || ""}</Text>
     </View>
   );
 };
